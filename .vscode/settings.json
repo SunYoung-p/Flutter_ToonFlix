@@ -1,0 +1,10 @@
+{
+  "[dart]": {
+    "editor.formatOnSave": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  },
+  "dart.previewFlutterUiGuides": true,
+  "editor.lightbulb.enabled": "on"
+}
