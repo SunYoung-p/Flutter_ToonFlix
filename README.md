@@ -9,7 +9,7 @@
 | 파일 | 설명 |
 |------|------|
 | `lib/widget_basic.dart` | Widget 제어를 위한 UI clone 연습 |
-| (향후 추가 예정) | — |
+| `lib/stateful_basic.dart` | StatefulWidget, Theme, initState/dispose 생명주기 연습 |
 
 ---
 
@@ -98,6 +98,128 @@ MaterialApp
 | 사용 시점 | 빠른 확인, 배포 직전 테스트 | 오류 추적, 변수 값 확인 |
 
 > **학습 중에는 `▶ Start Debugging`을 권장** — 브레이크포인트와 변수 감시 기능으로 코드 흐름을 시각적으로 파악할 수 있습니다.
+
+---
+
+### `lib/stateful_basic.dart`
+
+StatefulWidget의 생명주기(`initState`, `dispose`)와 Theme 시스템을 연습하는 파일입니다.
+
+---
+
+#### 🎨 Theme & TextTheme
+
+`MaterialApp`의 `theme`으로 앱 전체 스타일을 설정하고, 하위 위젯은 `Theme.of(context)`로 참조합니다.
+
+```dart
+// _AppState — 전역 테마 설정
+theme: ThemeData(
+  textTheme: TextTheme(titleLarge: TextStyle(color: Colors.red)),
+),
+
+// _MyTextState — 테마 색상 참조
+color: Theme.of(context).textTheme.titleLarge?.color,
+```
+
+**`Theme.of(context)` 동작 원리**
+
+- `context`는 위젯 트리에서의 **위치 정보**
+- 현재 위젯에서 **위로 올라가며** 가장 가까운 `Theme`을 찾아 반환
+- 상위에 `Theme`이 2개 이상이면 **가장 가까운(nearest) 상위** 것을 사용
+
+```mermaid
+graph TD
+    A[MaterialApp\ntheme: 빨간색] --> B[Theme\ntheme: 파란색]
+    B --> C[MyText\nTheme.of 호출]
+    C -->|위로 탐색| B
+    B -->|가장 가까운 Theme 발견| D[파란색 반환 ✅]
+```
+
+**TextTheme 역할 (Material Design 3)**
+
+| 스타일 | 용도 | 기본 크기 |
+|--------|------|-----------|
+| `titleLarge` | AppBar 제목, 섹션 제목 | 22sp |
+| `bodyLarge` | 본문, 목록 항목 | 16sp |
+
+> 구버전 `headline6` → `titleLarge`, `bodyText1` → `bodyLarge`로 변경되었습니다.
+
+---
+
+#### 🔄 StatefulWidget 생명주기
+
+`initState`와 `dispose`는 **StatefulWidget의 State 클래스**에서만 사용할 수 있습니다.
+
+| 메서드 | 호출 시점 | 호출 횟수 |
+|--------|-----------|-----------|
+| `initState` | 위젯이 트리에 **처음 추가**될 때 | 1회 |
+| `build` | 화면 렌더링, `setState` 호출 시 | 여러 번 |
+| `dispose` | 위젯이 트리에서 **완전히 제거**될 때 | 1회 |
+
+```mermaid
+graph LR
+    A[위젯 생성] --> B[initState]
+    B --> C[build]
+    C --> D[setState]
+    D --> C
+    C --> E[트리에서 제거]
+    E --> F[dispose]
+```
+
+> `StatelessWidget`에는 `initState`/`dispose`가 없습니다. 생명주기가 필요하면 `StatefulWidget`으로 변경해야 합니다.
+
+---
+
+#### 👁️ Hide 버튼 — initState/dispose 확인하기
+
+**핵심:** 위젯 **내부의 Text만 바꾸면** `build`만 재실행되고, `initState`/`dispose`는 호출되지 않습니다.  
+위젯 **자체를 트리에서 넣고 빼야** 생명주기 메서드가 실행됩니다.
+
+```dart
+// ❌ MyText 내부에서 Text만 교체 → build만 출력됨
+isHidden ? Text("Hidden") : Text("Click Counter")
+
+// ✅ 부모(_AppState)에서 MyText 위젯 자체를 조건부 렌더링
+isHidden ? const SizedBox() : const MyText()
+```
+
+**상태 끌어올리기 (State Lifting)**
+
+`isHidden` 상태를 `MyText`가 아닌 부모 `_AppState`에서 관리합니다.
+
+| 동작 | 콘솔 출력 |
+|------|-----------|
+| 앱 시작 | `Init` → `build` |
+| Hide 버튼 클릭 (숨김) | `Dispose` |
+| Hide 버튼 클릭 (다시 표시) | `Init` → `build` |
+
+---
+
+#### 🏗️ 프로그램 구조
+
+```
+MaterialApp (theme: titleLarge → 빨간색)
+└── Scaffold
+    └── Center
+        └── Column
+            ├── MyText (조건부)     ← isHidden ? SizedBox : MyText
+            │   └── Text: "Click Counter"
+            └── IconButton          ← hide() → isHidden 토글
+```
+
+---
+
+#### 💡 참고 — `print` 파란 줄 (avoid_print)
+
+`print("Init")` 등에 파란 줄이 표시되면 린터 규칙 `avoid_print` 힌트입니다. 오류가 아니며 앱 실행에는 영향 없습니다.
+
+```dart
+// 학습 중: print() 그대로 사용 가능
+print("Init");
+
+// 실전 권장: debugPrint() — 디버그 모드에서만 출력
+debugPrint("Init");
+```
 
 ---
 
